@@ -1,0 +1,57 @@
+host = get_shell.host_computer;
+target = params[0];
+
+targetRouter = get_router(target);
+
+if (typeof(targetRouter) != "router") then
+	exit("Failed to connect to " + target);
+end if
+
+computers = targetRouter.computers_lan_ip;
+forwardedPorts = targetRouter.used_ports;
+
+forwardingMap = {};
+
+for port in forwardedPorts
+	if (true != forwardingMap.hasIndex(port.get_lan_ip)) then
+		forwardingMap.push(port.get_lan_ip);
+		forwardingMap[port.get_lan_ip] = [];
+	end if
+	forwardingMap[port.get_lan_ip].push(port.port_number);
+end for
+
+checkForwarded = function(lan, port)
+	if (forwardingMap.hasIndex(lan)) then
+		if forwardingMap[lan].indexOf(port) != null then
+			return true;
+		end if
+	end if
+	return false;
+end function
+
+print("EXT: " + targetRouter.public_ip);
+print("INT: " + targetRouter.local_ip);
+
+rows = "HOST PORT FORWARDED STATE SERVICE VERSION";
+for computer in computers
+	ports = targetRouter.computer_ports(computer);
+	for port in ports
+		entry = computer + " " + port.port_number;
+		if checkForwarded(computer, port.port_number) then
+			entry = entry + " YES ";
+		else
+			entry = entry + " NO ";
+		end if
+		
+		if port.is_closed then
+			entry = entry + "CLOSED ";
+		else
+			entry = entry + "OPEN ";
+		end if
+
+		entry = entry + targetRouter.port_info(port);
+		rows = rows + "\n" + entry;
+	end for
+end for
+
+print(format_columns(rows));
