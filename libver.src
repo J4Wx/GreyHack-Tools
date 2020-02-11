@@ -1,0 +1,26 @@
+lib = params[0];
+currentPath = get_shell.host_computer.current_path
+
+// LOAD METAXPLOIT
+mx = include_lib("/lib/metaxploit.so")
+if not mx then
+	mx = include_lib(currentPath + "/metaxploit.so")
+end if
+
+if not mx then 
+	exit("Error: Can't find metaxploit.so library in the /lib path or the current folder")
+end if;
+
+if lib[0] == "/" then
+	libPath = lib;
+else
+	libPath = currentPath + "/" + lib;
+end if;
+
+library = mx.load(libPath);
+
+if not library then
+	exit("Error: Can't load " + lib);
+end if;
+
+print(library.lib_name + " is version: " + library.version);
