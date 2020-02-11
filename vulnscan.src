@@ -1,0 +1,35 @@
+lib = params[0];
+
+// LOAD METAXPLOIT
+mx = include_lib("/lib/metaxploit.so")
+if not mx then
+	currentPath = get_shell.host_computer.current_path
+	mx = include_lib(currentPath + "/metaxploit.so")
+end if
+
+if not mx then 
+	exit("Error: Can't find metaxploit.so library in the /lib path or the current folder")
+end if;
+
+if lib[0] == "/" then
+	libPath = lib;
+else
+	libPath = currentPath + "/" + lib;
+end if;
+
+library = mx.load(libPath);
+
+if not library then
+	exit("Error: Can't load " + lib);
+end if;
+
+print("// Scanning: " + library.lib_name + "@" + library.version + " \\");
+sectors = mx.scan(library);
+print("Found " + sectors.len + " vulnerable sectors.");
+print("");
+for sector in sectors
+	print("// SECTOR: " + sector + " \\");
+	print(mx.scan_address(library, sector));
+end for
+
+print("// SCAN COMPLETE \\");
