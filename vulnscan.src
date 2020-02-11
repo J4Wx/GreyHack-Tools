@@ -1,4 +1,5 @@
 lib = params[0];
+currentPath = get_shell.host_computer.current_path
 
 // LOAD METAXPLOIT
 mx = include_lib("/lib/metaxploit.so")
