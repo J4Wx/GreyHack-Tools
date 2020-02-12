@@ -1,0 +1,54 @@
+dictionaryGet = function (asString)
+	c = get_shell.host_computer;
+	dictionaryFile = c.File(home_dir + "/dictionary.txt");
+	if not dictionaryFile then
+		o = c.touch(home_dir, "dictionary.txt");
+	end if;
+	dictionaryFile = c.File(home_dir + "/dictionary.txt");
+	dictionaryContent = dictionaryFile.content;
+	if not asString then
+		dictionaryContent = dictionaryContent.split("\n");
+	end if;
+	return dictionaryContent;
+end function
+
+dictionaryWrite = function (newContent)
+	c = get_shell.host_computer;
+	dictionaryFile = c.File(home_dir + "/dictionary.txt");
+	if not dictionaryFile then
+		o = c.touch(home_dir, "dictionary.txt");
+	end if;
+	dictionaryFile = c.File(home_dir + "/dictionary.txt");
+	
+	dictionaryFile.set_content(newContent);
+end function
+
+dictionaryLookup = function (md5)
+	dictionaryContent = dictionaryGet();
+	entries = {};
+	
+	for entry in dictionaryContent
+		e = entry.split(":");
+		if e.len == 2 then 
+			hash = e[0];
+			pass = e[1];
+		
+			entries.push(hash);
+			entries[hash] = pass;
+		end if;
+	end for
+
+	hashes = entries.indexes;
+	exists = hashes.indexOf(md5);
+	
+	if exists != null then
+		return entries[md5];
+	end if;
+	return null;
+end function;
+
+dictionaryAdd = function (md5, password)
+	DictionaryContent = dictionaryGet(true);
+	DictionaryContent = DictionaryContent + "\n" + md5 + ":" + password;
+	dictionaryWrite(DictionaryContent);
+end function;
