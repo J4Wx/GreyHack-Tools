@@ -7,7 +7,6 @@ dictionaryGet = function (asString)
 	dictionaryFile = c.File(home_dir + "/dictionary.txt");
 	dictionaryContent = dictionaryFile.content;
 	if not asString then
-		dictionaryContent = dictionaryContent.split("\n");
 	end if;
 	return dictionaryContent;
 end function
@@ -53,20 +52,12 @@ dictionaryAdd = function (md5, password)
 	dictionaryWrite(DictionaryContent);
 end function;
 
-address = params[0];
-port = params[1].to_int;
+targetFile = params[0];
+c = get_shell.host_computer
+curPath = c.current_path;
 
-print("// CREDENTIAL GRABBING FROM " + address + ":" + port + " \\");
-
-// LOAD METAXPLOIT
-mx = include_lib("/lib/metaxploit.so")
-if not mx then
-	currentPath = get_shell.host_computer.current_path
-	mx = include_lib(currentPath + "/metaxploit.so")
-end if
-
-if not mx then 
-	exit("Error: Can't find metaxploit.so library in the /lib path or the current folder")
+if not targetFile[0] == "/" then
+	targetFile = curPath + "/" + targetFile;
 end if;
 
 //LOAD CRYTPO
@@ -80,68 +71,41 @@ if not crypt then
 	exit("Error: Can't find crypto.so library in the /lib path or the current folder")
 end if
 
-con = mx.net_use(address, port);
+targetFile = c.File(targetFile);
 
-if not con then
-	exit("Error: Couldn't connect to remote port.");
+if not targetFile then
+	exit("Couldn't open " + targetFile);
 end if;
 
-ssh = con.dump_lib;
+targetContent = targetFile.content;
 
-if not ssh then
-	exit("Error: Couldn't dump lib.");
-end if;
+print(targetContent);
 
-print("libssh version: " + ssh.version);
+rows = targetContent.split("\n");
+cleanRows = [];
 
-res = ssh.overflow("0x28520D7B", "qualedt");
+targetSelect = "ID USERNAME\n";
 
-if not typeof(res) == "computer" then
-	exit("Error: Expected Computer. Got " + typeof(res));
-end if;
-
-passwd = res.File("/etc/passwd");
-
-if not passwd then
-	exit("Error - /etc/passwd does not exist on the target.");
-end if
-
-if not passwd.has_permission("r") then
-	exit("Error - /etc/passwd has been hardened.");
-end if
-
-if passwd.is_binary then
-	exit("Error - /etc/passwd is a binary file?");
-end if
-
-entries = passwd.content.split("\n");
-fixedEntries = {};
-
-for entry in entries
-	e = entry.split(":");
-	if e.len == 2 then
-		fixedEntries[e[0]] = e[1];
+i = 0;
+for row in rows
+	entry = row.split(":");
+	if entry.len == 2 then
+		cleanRows.push(row);
+		targetSelect = targetSelect + i + " " + entry[0] + "\n";
 	end if;
 end for;
 
+print("// DECIPHERING " + targetFile.path + " \\");
+print("Total Users: " + cleanRows.len);
 print("");
-users = [];
-userOutput = "ID NAME\n";
-i = 0;
-for index in fixedEntries.indexes
-	users.push(index);
-	userOutput = userOutput + i + " " + index + "\n";
-	i = i + 1;
-end for;
-
-print(format_columns(userOutput));
+print(format_columns(targetSelect));
 
 getIdInput = function ()
 	input = user_input("Select a User ID (e.g., 0): ", false);
 	output = input.to_int
 	if typeof(output) == "number" then
 		if output > -1 then
-			if output < users.len then
+			if output < cleanRows.len then
 				return output;
 			end if
 		end if
@@ -150,20 +114,18 @@ getIdInput = function ()
 	return getIdInput();
 end function
 
-user_id = getIdInput();
+userId = getIdInput();
+targetEntry = cleanRows[userId].split(":");
+username = targetEntry[0];
+hash = targetEntry[1];
 
-username = users[user_id];
-hash = fixedEntries[username];
+print("// CRACKING PASSWORD FOR: " + username + " \\");
 
-dict = dictionaryLookup(hash);
-
-if dict then
-	password = dict;
-else
+password = dictionaryLookup(hash);
+if not password then
 	password = crypt.decipher(username, hash);
 	dictionaryAdd(hash, password);
 end if;
 
-print("Username: " + username);
 print("Password: " + password);
-print("// SUCCESS \\");
+print("// COMPLETE \\");
