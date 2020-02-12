@@ -93,6 +93,7 @@ for row in rows
 	if entry.len == 2 then
 		cleanRows.push(row);
 		targetSelect = targetSelect + i + " " + entry[0] + "\n";
+		i = i + 1;
 	end if;
 end for;
 
