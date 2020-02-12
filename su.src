@@ -1,0 +1,5 @@
+user = params[0];
+password = params[1];
+
+shell = get_shell(user, password);
+shell.start_terminal;
