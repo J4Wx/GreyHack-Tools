@@ -7,6 +7,7 @@ dictionaryGet = function (asString)
 	dictionaryFile = c.File(home_dir + "/dictionary.txt");
 	dictionaryContent = dictionaryFile.content;
 	if not asString then
+		dictionaryContent = dictionaryContent.split("\n");
 	end if;
 	return dictionaryContent;
 end function
