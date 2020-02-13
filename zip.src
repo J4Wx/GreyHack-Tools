@@ -1,0 +1,35 @@
+zipString = "@@@@@@@@";
+zipSpacer = "::::::::";
+
+targetFolder = params[0];
+output = params[1];
+
+c = get_shell.host_computer;
+
+rootFolder = c.File(targetFolder);
+
+if not rootFolder.is_folder then
+	exit(targetFolder + "is not a folder!");
+end if;
+
+baseFolder = rootFolder.path;
+trimLength = baseFolder.len;
+zipContent = "";
+
+recurseFolder = function(folder, zipContent)
+	for file in folder.get_files
+		if not file.is_binary then
+			zipContent = zipContent + file.path[trimLength:] + zipString + file.content + zipSpacer;
+		end if;
+	end for;
+	for foldex in folder.get_folders
+		zipContent = recurseFolder(foldex, zipContent);
+	end for;
+	return zipContent;
+end function
+
+zipContent = recurseFolder(rootFolder, "");
+
+c.touch(c.current_path, output);
+outputFile = c.File(c.current_path + "/" + output);
+outputFile.set_content(zipContent);

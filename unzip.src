@@ -1,0 +1,39 @@
+zipString = "@@@@@@@@";
+zipSpacer = "::::::::";
+
+targetZip = params[0];
+outputFolder = params[1];
+
+c = get_shell.host_computer;
+
+c.create_folder(c.current_path, outputFolder);
+outputBaseFolder = c.File(c.current_path + "/" + outputFolder);
+
+zipFile = c.File(c.current_path + "/" + targetZip);
+zipFile = zipFile.content;
+zipFiles = zipFile.split(zipSpacer);
+
+makeZipFile = function (filename, filecontent)
+	filePath = outputBaseFolder.path;
+	filename = filename[1:];
+	splix = filename.split("/");
+	splix = splix[1:];
+	if splix.len > 0 then
+		for spli in splix
+			c.create_folder(filePath, spli);
+			filePath = filePath + "/" + spli;
+		end if;
+	end if
+	c.touch(filePath, filename.split("/").pop);
+	fx = c.File(filePath + "/" + filename.split("/").pop);
+	fx.set_content(filecontent);
+end function;
+
+for zipFilx in zipFiles
+	sp = zipFilx.split(zipString);
+	if sp.len == 2 then
+		filePath = sp[0];
+		fileContent = sp[1];
+		makeZipFile(filePath, fileContent);
+	end if;
+end for;
