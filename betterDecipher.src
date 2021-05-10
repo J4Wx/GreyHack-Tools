@@ -1,42 +1,40 @@
-dictionaryGet = function (asString)
+_dictionaryGet = function ()
 	c = get_shell.host_computer;
-	dictionaryFile = c.File(home_dir + "/dictionary.txt");
-	if not dictionaryFile then
-		o = c.touch(home_dir, "dictionary.txt");
-	end if;
-	dictionaryFile = c.File(home_dir + "/dictionary.txt");
-	dictionaryContent = dictionaryFile.content;
-	if not asString then
-		dictionaryContent = dictionaryContent.split("\n");
-	end if;
-	return dictionaryContent;
-end function
-
-dictionaryWrite = function (newContent)
-	c = get_shell.host_computer;
-	dictionaryFile = c.File(home_dir + "/dictionary.txt");
-	if not dictionaryFile then
-		o = c.touch(home_dir, "dictionary.txt");
-	end if;
 	dictionaryFile = c.File(home_dir + "/dictionary.txt");
 	
-	dictionaryFile.set_content(newContent);
-end function
+	if not dictionaryFile then
+		o = c.touch(home_dir, "dictionary.txt");
+	end if;
+	
+	dictionaryFile = c.File(home_dir + "/dictionary.txt");
+	
+	if not dictionaryFile then
+		exit("No Permission To Create Dictionary File");
+	end if;
+	
+	return dictionaryFile;
+end function;
 
-dictionaryLookup = function (md5)
-	dictionaryContent = dictionaryGet();
+_dictionaryWrite = function (md5, password)
+	dictionaryFile = _dictionaryGet();
+	dictionaryFile.set_content(dictionaryFile.get_content + md5 + ":" + password + "\n");
+end function;
+
+_dictionaryLookup = function (md5)
+	dictionaryContent = _dictionaryGet().get_content.split("\n");
+	
 	entries = {};
 	
 	for entry in dictionaryContent
 		e = entry.split(":");
-		if e.len == 2 then 
+		if e.len == 2 then
 			hash = e[0];
 			pass = e[1];
 			
 			entries.push(hash);
 			entries[hash] = pass;
 		end if;
-	end for
+	end for;
 	
 	hashes = entries.indexes;
 	exists = hashes.indexOf(md5);
@@ -44,60 +42,65 @@ dictionaryLookup = function (md5)
 	if exists != null then
 		return entries[md5];
 	end if;
+	
 	return null;
+	
 end function;
 
-dictionaryAdd = function (md5, password)
-	DictionaryContent = dictionaryGet(true);
-	DictionaryContent = DictionaryContent + "\n" + md5 + ":" + password;
-	dictionaryWrite(DictionaryContent);
+_loadLib = function (lib)
+	tempLib = include_lib("/lib/" + lib);
+	
+	if not tempLib then
+		tempLib = include_lib(current_path + "/" + lib);
+	end if;
+	
+	if not tempLib then
+		exit("Library " + lib + " is not available in /lib or the current path.");
+	end if;
+	
+	return tempLib;
 end function;
+
+c = get_shell.host_computer;
+curPath = current_path;
 
 targetFile = params[0];
-c = get_shell.host_computer
-curPath = c.current_path;
-
 if not targetFile[0] == "/" then
 	targetFile = curPath + "/" + targetFile;
 end if;
 
-//LOAD CRYTPO
-crypt = include_lib("/lib/crypto.so")
-if not crypt then
-	currentPath = get_shell.host_computer.current_path
-	crypt = include_lib(currentPath + "/crypto.so")
-end if
+crypt = _loadLib("crypto.so");
 
-if not crypt then 
-	exit("Error: Can't find crypto.so library in the /lib path or the current folder")
-end if
+file = c.File(targetFile);
 
-targetFile = c.File(targetFile);
-
-if not targetFile then
+if not file then
 	exit("Couldn't open " + targetFile);
 end if;
 
-targetContent = targetFile.content;
-
-print(targetContent);
+targetContent = file.get_content;
 
 rows = targetContent.split("\n");
 cleanRows = [];
 
-targetSelect = "ID USERNAME\n";
+targetSelect = "ID USERNAME PASSWORD\n";
 
 i = 0;
 for row in rows
 	entry = row.split(":");
 	if entry.len == 2 then
 		cleanRows.push(row);
-		targetSelect = targetSelect + i + " " + entry[0] + "\n";
+		password = _dictionaryLookup(entry[1]);
+		
+		if password == null then
+			password = "UNKNOWN";
+		end if;
+		
+		targetSelect = targetSelect + i + " " + entry[0] + " " + password + "\n";
 		i = i + 1;
 	end if;
 end for;
 
-print("// DECIPHERING " + targetFile.path + " \\");
+print("// DECIPHERING " + targetFile + " \\");
 print("Total Users: " + cleanRows.len);
 print("");
 print(format_columns(targetSelect));
@@ -123,10 +126,10 @@ hash = targetEntry[1];
 
 print("// CRACKING PASSWORD FOR: " + username + " \\");
 
-password = dictionaryLookup(hash);
+password = _dictionaryLookup(hash);
 if not password then
-	password = crypt.decipher(username, hash);
-	dictionaryAdd(hash, password);
+	password = crypt.decipher(hash);
+	_dictionaryWrite(hash, password);
 end if;
 
 print("Password: " + password);
